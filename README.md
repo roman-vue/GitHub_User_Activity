@@ -3,5 +3,8 @@ In this project, you will build a simple command line interface (CLI) to fetch t
 ![image](https://github.com/user-attachments/assets/551a3362-14cb-4d70-9c0e-3e3dc3e545aa)
 
 ```
+npm install
+```
+```
 github-activity get roman-vue
 ```
