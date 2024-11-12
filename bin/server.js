@@ -1,69 +1,68 @@
 #!/usr/bin/env node
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const yargs_1 = __importDefault(require("yargs"));
-const https_1 = __importDefault(require("https"));
-// Función para obtener la actividad de GitHub
-function getGitHubActivity(username) {
-    console.log('username :>> ', username);
-    const url = `https://api.github.com/users/${username}/events`;
-    const options = {
-        headers: {
-            'User-Agent': 'node.js'
+const yargs = require('yargs');
+const https = require('https');
+
+function getActivity(username, year) {
+  const url = `https://api.github.com/users/${username}/events`;
+
+  const options = {
+    headers: {
+      'User-Agent': 'node.js',
+      'Accept': 'application/vnd.github.v3+json',
+    },
+  };
+
+  https.get(url, options, (res) => {
+    let data = '';
+
+    // Escucha los datos recibidos en partes
+    res.on('data', (chunk) => {
+      data += chunk;
+    });
+
+    res.on('end', () => {
+      try {
+        const events = JSON.parse(data);
+        if (Array.isArray(events) && events.length > 0) {
+          console.log(`Recent activity for ${username}:`);
+          events.forEach((event, index) => {
+            if (index < 5) {
+              const eventDate = new Date(event.created_at);
+              if (!year || eventDate.getFullYear() === year) {
+                console.log(`- ${event.type} in repository: ${event.repo.name} at ${eventDate.getFullYear()}`);
+              }
+            }
+          });
+        } else {
+          console.log(`No recent activity found for ${username}.`);
         }
-    };
-    https_1.default.get(url, options, (res) => {
-        let data = '';
-        res.on('data', (chunk) => {
-            data += chunk;
-        });
-        res.on('end', () => {
-            try {
-                const events = JSON.parse(data);
-                if (Array.isArray(events) && events.length > 0) {
-                    events.forEach((event) => {
-                        switch (event.type) {
-                            case 'PushEvent':
-                                console.log(`Pushed ${event.payload.commits.length} commits to ${event.repo.name}`);
-                                break;
-                            case 'IssuesEvent':
-                                console.log(`Opened a new issue in ${event.repo.name}`);
-                                break;
-                            case 'WatchEvent':
-                                console.log(`Starred ${event.repo.name}`);
-                                break;
-                            default:
-                                console.log(`Performed ${event.type} on ${event.repo.name}`);
-                        }
-                    });
-                }
-                else {
-                    console.log('No recent activity found.');
-                }
-            }
-            catch (error) {
-                console.error('Error parsing the data:', error);
-            }
-        });
-    }).on('error', (err) => {
-        console.error('Error fetching the data:', err.message);
+      } catch (error) {
+        console.error('Error parsing the response:', error);
+      }
     });
+  }).on('error', (err) => {
+    console.error('Error fetching data:', err.message);
+  });
 }
-// Configuración de yargs para el CLI
-yargs_1.default
-    .command('get-activity <username>', 'Fetch the recent GitHub activity of a user', (yargs) => {
+
+yargs.command({
+  command: 'get <username>',
+  describe: 'Print the provided GitHub username',
+  builder: (yargs) => {
     return yargs.positional('username', {
-        describe: 'GitHub username',
-        type: 'string'
+      describe: 'GitHub username',
+      type: 'string',
+    })
+    .option('year', {
+      describe: 'Filter the activity by year',
+      type: 'number',
+      demandOption: false,
     });
-}, (argv) => {
-    const { username } = argv;
-    console.log(`Fetching activity for user: ${username}`);
-    getGitHubActivity('roman-vue');
-})
-    .demandCommand(1, 'You need to specify a command')
-    .help()
-    .parse();
+  },
+  handler(argv) {
+    let {username, year} = argv
+    getActivity(username, year)
+  },
+});
+
+yargs.parse();
